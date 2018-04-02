@@ -1,0 +1,487 @@
+<head>
+  <link rel="icon" href="tomoIcon.png">
+  <link href="https://fonts.googleapis.com/css?family=Press+Start+2P" rel="stylesheet">
+<head>
+
+<body>
+<h1>King of Infinite Space</h1>
+<canvas id="canvas"></canvas>
+<div id="speech">An egg, alone.</div>
+<div id="interactionWrapper">
+  <div id="interaction"></div>
+</div>
+<div id="buttonWrapper">
+  <div id="buttons">
+    <button id="button1" onclick="leftButton()"></button>
+    <button id="button2" onclick="interact()"></button>
+    <button id="button3" onclick="cleanPoo()"></button>
+  </div>
+</div>
+<br>
+<img src="tomogatchi.png" id="tomoPic" style="display:none">
+<img src="tomoOpenMouth.png" id="tomoMouthPic" style="display:none">
+<img src="tomoPoo.png" id="pooPic" style="display:none">
+<img src="tomoApple.png" id="applePic" style="display:none">
+<img src="anvil.png" id="anvilPic" style="display:none">
+<img src="globe.png" id="globePic" style="display:none">
+<img src="bird.png" id="birdPic" style="display:none">
+<img src="cityBackground.png" id="cityPic" style="display:none">
+<img src="mountainBackground.png" id="mountainsPic" style="display:none">
+
+</body>
+
+<style>
+  body{
+    text-align: center;
+    font-family: 'Press Start 2P', cursive;
+  }
+  #canvas{
+    width:300px;
+    height:300px;
+    border:2px solid grey;
+    background-color:#ececec;
+  }
+  #buttonWrapper{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  #buttons{
+    position: absolute;
+    top: 380px;
+  }
+  button{
+    width:30px;
+    height:30px;
+    border-radius: 20px;
+    background-color: orangered;
+    margin:1em;
+  }
+  button:focus{
+    outline:0;
+  }
+  #speech{
+    position: relative;
+    top:-290px;
+    width:300px;
+    margin:auto;
+  }
+  #interactionWrapper{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  #interaction{
+    position: absolute;
+    top:310px;
+    width:300px;
+    margin:auto;
+    background-color: #ececec;
+  }
+
+</style>
+
+<script>
+var canvas = document.getElementById("canvas");
+var width = 300;
+var height = 300;
+canvas.width = width*2;
+canvas.height = height*2;
+canvas.style.width = width;
+canvas.style.height = height;
+var ctx = canvas.getContext("2d");
+canvas.getContext("2d").scale(2,2);
+
+var framecount = 0;
+var floor = height-60;
+var speech = document.getElementById("speech");
+var interaction = document.getElementById("interaction");
+var game = document.getElementById("game");
+var playingGame = false;
+var background = "home";
+
+var tomo ={
+  width: 68,
+  height:72,
+  x:150-68/2,
+  y:floor-72,
+  age:0,
+  jumping:false,
+  goingRight:true,
+  yOffset:0,
+  dead:false,
+  mouthOpen:false
+}
+
+var poop = false;
+var pooOffset = 0;
+var pooX = width-50;
+var poopTimer = 0;
+var apple = false;
+var appleX = 30;
+var appleCount = 0;
+var appleTimer = 0;
+var fallingObject = "";
+var fallingObjectY = -50;
+var deathCount = 0;
+var speechText = "";
+
+function update(progress) {
+
+  framecount ++;
+  if(tomo.age<1){
+    if(framecount<500){
+      if(framecount>200){
+        tomo.jumping = true;
+      }
+    }else{
+      tomo.age = 1;
+      tomo.jumping = false;
+      if(framecount===500){
+        speechText = "The miracle of birth.";
+        speak();
+      }
+    }
+  }
+  if(tomo.age>0 && tomo.age<12){
+    if(tomo.goingRight){
+      if(tomo.x<(width-tomo.width-5)){
+        tomo.x += .5;
+      }else{
+        tomo.goingRight = false;
+      }
+    }else{
+      if(tomo.x>5){
+        tomo.x -= .5;
+      }else{
+        tomo.goingRight = true;
+        if(tomo.age>0){
+          appleTimer ++;
+        }
+      }
+    }
+  }
+  if(tomo.jumping && framecount%8===0){
+    if(tomo.y===floor-tomo.height){
+      tomo.y = floor-tomo.height*1.3;
+    }else{
+      tomo.y = floor-tomo.height;
+    }
+  }
+  if(!tomo.jumping){
+    tomo.y = floor-tomo.height;
+  }
+//poops
+  //var rand = Math.random();
+  if(!poop && tomo.x>width-80 && appleCount>0){
+    poop = true;
+    if(tomo.age<4){
+      speechText = '"I made a poop!"';
+    }
+  }
+  if(poop){
+    if(tomo.goingRight && tomo.x+tomo.width>pooX){
+      poopTimer++;
+      tomo.goingRight = false;
+    }
+  }else{
+    poopTimer = 0;
+  }
+  if(poopTimer>4){
+    speechText = '"I hate you."';
+  }else if(poopTimer>3){
+    speechText = '"You&#39re a bad mom."';
+  }else if(poopTimer>2){
+    speechText = '"Clean my poop."';
+  }
+//hungry
+  if(appleTimer>5){
+    die();
+  }else if(appleTimer>4){
+    tomo.jumping = true;
+    speechText = "I&#39m starving!";
+    speak();
+  }else if(appleTimer>2){
+    speechText = "I&#39m hungry.";
+  }else{
+    tomo.jumping = false;
+  }
+//nanny
+  if(nanny){
+    if(tomo.x<100){
+      cleanPoo();
+    }else if(tomo.x+tomo.width > 200){
+      feed();
+    }
+  }
+
+//eat apple
+    if(apple && tomo.x<appleX+30){
+      tomo.mouthOpen = true;
+      if(tomo.x<appleX){
+        apple = false;
+        speechText = '"nom nom nom"';
+        speak();
+        appleCount++;
+      }
+    }
+    if (!apple){
+      tomo.mouthOpen = false;
+    }
+    if(appleCount>2 && tomo.age<11){
+      tomo.age++;
+      appleCount = 0;
+    }
+      if(tomo.age === 4){
+        speechText = '"My body is changing."'
+      }
+      if(tomo.age === 5){
+        speechText = '"I feel insecure about the way I look."'
+      }
+      if(tomo.age === 6){
+        speechText = '"Sometimes I hate myself."'
+      }
+      if(tomo.age === 7){
+        speechText = '"I&#39m all alone in here."'
+      }
+      if(tomo.age === 11){
+        speechText = '"I feel like I should get a job or something."'
+      }
+
+//falling objects
+      if(fallingObject !== ""){
+        if(fallingObjectY < height){
+          fallingObjectY ++;
+        }else{
+          fallingObject = "";
+          fallingObjectY = -50;
+        }
+      }
+//speak
+    if(tomo.x === width/2){
+      speak();
+    }
+
+}//end update function
+
+function overlap(a,b){
+
+}
+
+function speak(){
+  speech.innerHTML = speechText;
+}
+
+function draw() {
+  ctx.clearRect(0, 0, width, height);
+
+  if(background === "city"){
+    var img = document.getElementById("cityPic");
+    ctx.drawImage(img,0,0,img.width,img.height,0,0,img.width,img.height);
+  }else if(background === "mountains"){
+    var img = document.getElementById("mountainsPic");
+    ctx.drawImage(img,0,0,img.width,img.height,0,0,img.width,img.height);
+  }
+
+  if(poop){
+    var img = document.getElementById("pooPic");
+    if(framecount%50===0){
+      if(pooOffset===0){
+        pooOffset = 28;
+      }else{
+        pooOffset = 0;
+      }
+    }
+    ctx.drawImage(img,pooOffset,0,28,32,pooX,floor-32,28,32);
+  }
+
+  if(tomo.mouthOpen){
+    var img = document.getElementById("tomoMouthPic");
+  }else{
+    var img = document.getElementById("tomoPic");
+  }
+  if(tomo.goingRight){
+    tomo.yOffset = tomo.height;
+  }else{
+    tomo.yOffset = 0;
+  }
+
+  ctx.drawImage(img,tomo.age*tomo.width,tomo.yOffset,tomo.width,tomo.height,tomo.x,tomo.y,tomo.width,tomo.height);
+
+  if(apple){
+    var img = document.getElementById("applePic");
+    ctx.drawImage(img,0,0,32,36,appleX,floor-36,32,36);
+  }
+
+  if(fallingObject !== ""){
+    var img = document.getElementById(fallingObject+"Pic");
+    ctx.drawImage(img,0,0,img.width,img.height,width/2,fallingObjectY,img.width,img.height);
+  }
+}//end draw function
+
+function loop(timestamp) {
+  var progress = timestamp - lastRender
+
+  update(progress)
+  draw()
+
+  lastRender = timestamp
+  window.requestAnimationFrame(loop)
+}
+
+function cleanPoo(){
+  if(poop){
+    poop = false;
+  }
+}
+
+function leftButton(){
+  if(interactNum === interactions.length-1){
+    feed();
+  }else{
+    doAthing();
+  }
+  if(playingGame){
+    pickAnswer();
+  }
+}
+
+function feed(){
+  if(!apple && tomo.x>appleX+30){
+    apple = true;
+  }
+  appleTimer = 0;
+}
+
+var interactions = ['Hire a nanny','Go to the mountains','Go home','Drop something','Go to the city',''];
+var interactNum = interactions.length-1;
+var nanny = false;
+
+function interact(){
+
+  if(tomo.dead){
+    resurrect();
+  }else{
+  var random = Math.random();
+  if(tomo.age>11){
+    if(random>.8){
+      toggleNanny();
+    }else if(random>.6){
+      if(background === "home"){
+        background = "city";
+      }else{
+        background = "home";
+      }
+      interaction.innerHTML = '';
+    }else if(random>.4){
+      if(background === "home"){
+        background = "mountains";
+      }else{
+        background = "home";
+      }
+      interaction.innerHTML = '';
+    }else{
+      dropSomething();
+      interaction.innerHTML = '';
+    }
+  }else if(tomo.age>8){
+    if(random>.66){
+      toggleNanny;
+    }else if(random>.33){
+      if(background === "home"){
+        background = "city";
+        interaction.innerHTML = '';
+      }else{
+        background = "home";
+        interaction.innerHTML = '';
+      }
+    }else{
+      dropSomething();
+      interaction.innerHTML = '';
+    }
+  }else if(tomo.age>5){
+    if(random>.5){
+      dropSomething();
+      interaction.innerHTML = '';
+    }else{
+      toggleNanny();
+    }
+  }else if(tomo.age>2){
+    toggleNanny();
+  }
+}
+}
+
+function toggleNanny(){
+  nanny = !nanny;
+  if(nanny){
+    interaction.innerHTML = 'The nanny will now feed and clean the creature';
+  }else{
+    interaction.innerHTML = 'The nanny has been fired';
+  }
+}
+
+function dropSomething(){
+  if(background === "home"){
+    fallingObject = "anvil";
+  }else if(background === "city"){
+    fallingObject = "bird";
+  }else if(background === "mountains"){
+    fallingObject = "globe";
+  }
+}
+
+//game stuff_________________________________________
+
+var gameClicks = 1;
+function playGame(){
+  playingGame = true;
+  game.style.display = "inline-block";
+  speech.style.display = "none";
+  twoTruths();
+}
+function changeGameAnswer(){
+  for(i=1;i<4;i++){
+    if(i === gameClicks){
+      document.getElementById("answer"+i).style.backgroundColor = "yellow";
+    }else{
+      document.getElementById("answer"+i).style.backgroundColor = "transparent";
+    }
+  }
+  if(gameClicks>2){
+    gameClicks = 0;
+  }
+}
+function truthOrDare(){
+  game.innerHTML="Truth or dare:";
+}
+function twoTruths(){
+  game.innerHTML='<br>Two truths and a lie:<br><br><br><div id="answer1">&nbsp(1) I am a platypus.</div><br><br><div id="answer2">&nbsp(2) I am a genius.</div><br><br><div id="answer3">&nbsp(3) I am God.</div><br><br><br>&nbspPick the lie.';
+}
+function pickAnswer(){
+  game.innerHTML='<br>WRONG';
+}
+
+function die(){
+  tomo.dead = true;
+  deathCount ++;
+  tomo.age = 12;
+  speechText="In death, still alone.";
+  speak();
+  tomo.jumping = false;
+  //interactions = ['Resurrect',''];
+}
+function resurrect(){
+  tomo.dead = false;
+  tomo.age = 1;
+  appleTimer = 0;
+  poopTimer = 0;
+  speechText = '"How could you let me die? You suck."';
+  speak();
+  //interactions = [''];
+}
+var lastRender = 0;
+window.requestAnimationFrame(loop);
+
+
+</script>
